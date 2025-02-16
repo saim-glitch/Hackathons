@@ -96,7 +96,7 @@ def generate_recommendations(aiml, bandit, complexity, dependencies):
     
     return recommendations if recommendations else ["No critical issues detected. Your code looks good!"]
 
-# PDF Report Generation
+# PDF Report Generation - Modified to output plain text instead of JSON
 def generate_pdf_report(report, file_path):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -104,22 +104,67 @@ def generate_pdf_report(report, file_path):
     
     pdf.set_font("Arial", "B", 12)
     pdf.cell(200, 10, txt=f"Code Analysis Report: {os.path.basename(file_path)}", ln=True, align="C")
-    
     pdf.ln(10)
     
     pdf.set_font("Arial", size=10)
-    pdf.multi_cell(0, 10, f"File Analyzed: {os.path.basename(file_path)}")
-    pdf.multi_cell(0, 10, f"AIML Analysis: {report['AIML Analysis']}")
-    pdf.multi_cell(0, 10, f"Security Analysis (Bandit): {json.dumps(report['Security Analysis (Bandit)'], indent=4)}")
-    pdf.multi_cell(0, 10, f"Code Complexity: {json.dumps(report['Code Complexity'], indent=4)}")
-    pdf.multi_cell(0, 10, f"Dependency Analysis: {json.dumps(report['Dependency Analysis'], indent=4)}")
-    pdf.multi_cell(0, 10, f"Recommendations: {', '.join(report['Recommendations'])}")
+    pdf.multi_cell(0, 10, f"File Analyzed: {os.path.basename(file_path)}\n")
+    pdf.multi_cell(0, 10, "AIML Analysis:\n" + str(report['AIML Analysis']) + "\n")
+    
+    # Security Analysis - Format as plain text
+    sec_text = "Security Analysis (Bandit):\n"
+    if "error" in report["Security Analysis (Bandit)"]:
+        sec_text += report["Security Analysis (Bandit)"]["error"] + "\n"
+    elif report["Security Analysis (Bandit)"].get("results"):
+        for result in report["Security Analysis (Bandit)"]["results"]:
+            sec_text += f"Test: {result.get('test_name', 'N/A')}\n"
+            sec_text += f"Severity: {result.get('issue_severity', 'N/A')}\n"
+            sec_text += f"Confidence: {result.get('issue_confidence', 'N/A')}\n"
+            sec_text += f"Code: {result.get('code', '').strip()}\n"
+            sec_text += f"Explanation: {result.get('issue_text', 'N/A')}\n"
+            sec_text += "--------------------------------------\n"
+    else:
+        sec_text += "No security issues found.\n"
+    pdf.multi_cell(0, 10, sec_text + "\n")
+    
+    # Code Complexity - Format as plain text
+    cc = report["Code Complexity"]
+    cc_text = ("Code Complexity:\n" +
+               f"Total Functions: {cc.get('total_functions', 0)}\n" +
+               f"Total Classes: {cc.get('total_classes', 0)}\n" +
+               f"Total Variables: {cc.get('total_variables', 0)}\n" +
+               f"Complexity Score: {cc.get('complexity_score', 0)}\n" +
+               f"Functions: {', '.join(cc.get('functions', []))}\n" +
+               f"Classes: {', '.join(cc.get('classes', []))}\n" +
+               f"Variables: {', '.join(cc.get('variables', []))}\n")
+    pdf.multi_cell(0, 10, cc_text + "\n")
+    
+    # Dependency Analysis - Format as plain text
+    dep = report["Dependency Analysis"]
+    dep_text = "Dependency Analysis:\n"
+    if "error" in dep:
+        dep_text += dep["error"] + "\n"
+    elif dep.get("vulnerabilities"):
+        for vuln in dep["vulnerabilities"]:
+            dep_text += f"Name: {vuln.get('name', 'N/A')}\n"
+            dep_text += f"Spec: {vuln.get('spec', 'N/A')}\n"
+            advisory = vuln.get("advisory", {})
+            dep_text += f"Severity: {advisory.get('severity', 'N/A')}\n"
+            dep_text += f"Affected Versions: {advisory.get('affected_versions', 'N/A')}\n"
+            dep_text += f"Description: {advisory.get('description', 'N/A')}\n"
+            dep_text += "--------------------------------------\n"
+    else:
+        dep_text += "No dependency vulnerabilities found.\n"
+    pdf.multi_cell(0, 10, dep_text + "\n")
+    
+    # Recommendations
+    rec_text = "Recommendations:\n" + "\n".join(report["Recommendations"]) + "\n"
+    pdf.multi_cell(0, 10, rec_text)
     
     pdf_output = f"{file_path}_report.pdf"
     pdf.output(pdf_output)
     return pdf_output
 
-# Word Report Generation
+# Word Report Generation - Modified to output plain text instead of JSON
 def generate_word_report(report, file_path):
     doc = Document()
     doc.add_heading(f"Code Analysis Report: {os.path.basename(file_path)}", 0)
@@ -128,25 +173,65 @@ def generate_word_report(report, file_path):
     doc.add_paragraph(f"{os.path.basename(file_path)}")
     
     doc.add_heading("AIML Analysis", level=1)
-    doc.add_paragraph(report['AIML Analysis'])
+    doc.add_paragraph(str(report['AIML Analysis']))
     
+    # Security Analysis - Format as plain text
+    sec_text = "Security Analysis (Bandit):\n"
+    if "error" in report["Security Analysis (Bandit)"]:
+        sec_text += report["Security Analysis (Bandit)"]["error"] + "\n"
+    elif report["Security Analysis (Bandit)"].get("results"):
+        for result in report["Security Analysis (Bandit)"]["results"]:
+            sec_text += f"Test: {result.get('test_name', 'N/A')}\n"
+            sec_text += f"Severity: {result.get('issue_severity', 'N/A')}\n"
+            sec_text += f"Confidence: {result.get('issue_confidence', 'N/A')}\n"
+            sec_text += f"Code: {result.get('code', '').strip()}\n"
+            sec_text += f"Explanation: {result.get('issue_text', 'N/A')}\n"
+            sec_text += "--------------------------------------\n"
+    else:
+        sec_text += "No security issues found.\n"
     doc.add_heading("Security Analysis (Bandit)", level=1)
-    doc.add_paragraph(json.dumps(report['Security Analysis (Bandit)'], indent=4))
+    doc.add_paragraph(sec_text)
     
+    # Code Complexity - Format as plain text
+    cc = report["Code Complexity"]
+    cc_text = ("Code Complexity:\n" +
+               f"Total Functions: {cc.get('total_functions', 0)}\n" +
+               f"Total Classes: {cc.get('total_classes', 0)}\n" +
+               f"Total Variables: {cc.get('total_variables', 0)}\n" +
+               f"Complexity Score: {cc.get('complexity_score', 0)}\n" +
+               f"Functions: {', '.join(cc.get('functions', []))}\n" +
+               f"Classes: {', '.join(cc.get('classes', []))}\n" +
+               f"Variables: {', '.join(cc.get('variables', []))}\n")
     doc.add_heading("Code Complexity", level=1)
-    doc.add_paragraph(json.dumps(report['Code Complexity'], indent=4))
+    doc.add_paragraph(cc_text)
     
+    # Dependency Analysis - Format as plain text
+    dep = report["Dependency Analysis"]
+    dep_text = "Dependency Analysis:\n"
+    if "error" in dep:
+        dep_text += dep["error"] + "\n"
+    elif dep.get("vulnerabilities"):
+        for vuln in dep["vulnerabilities"]:
+            dep_text += f"Name: {vuln.get('name', 'N/A')}\n"
+            dep_text += f"Spec: {vuln.get('spec', 'N/A')}\n"
+            advisory = vuln.get("advisory", {})
+            dep_text += f"Severity: {advisory.get('severity', 'N/A')}\n"
+            dep_text += f"Affected Versions: {advisory.get('affected_versions', 'N/A')}\n"
+            dep_text += f"Description: {advisory.get('description', 'N/A')}\n"
+            dep_text += "--------------------------------------\n"
+    else:
+        dep_text += "No dependency vulnerabilities found.\n"
     doc.add_heading("Dependency Analysis", level=1)
-    doc.add_paragraph(json.dumps(report['Dependency Analysis'], indent=4))
+    doc.add_paragraph(dep_text)
     
+    # Recommendations
     doc.add_heading("Recommendations", level=1)
-    doc.add_paragraph(f"{', '.join(report['Recommendations'])}")
+    doc.add_paragraph("\n".join(report["Recommendations"]))
     
     word_output = f"{file_path}_report.docx"
     doc.save(word_output)
     return word_output
 
-# Streamlit UI
 def main():
     st.title("🚀 AI-Powered Code Review & Vulnerability Detector")
     st.markdown("Upload your Python file to analyze for vulnerabilities, efficiency, and best practices.")
@@ -163,37 +248,103 @@ def main():
         st.subheader("Uploaded Code:")
         st.code(code, language="python")
         
-        with st.spinner("Analyzing code... Please wait."):
-            aiml_results = analyze_with_aiml(code)
-            bandit_results = analyze_with_bandit(temp_file_path)
-            complexity_results = analyze_code_complexity(code)
-            dependencies_results = check_dependencies()
+        # Initialize analysis variables with default values
+        aiml_results = None
+        bandit_results = None
+        complexity_results = None
+        dependencies_results = None
         
+        try:
+            with st.spinner("Analyzing code... Please wait."):
+                aiml_results = analyze_with_aiml(code)
+                bandit_results = analyze_with_bandit(temp_file_path)
+                complexity_results = analyze_code_complexity(code)
+                dependencies_results = check_dependencies()
+        except Exception as e:
+            st.error(f"An error occurred during analysis: {str(e)}")
+            return  # Exit the function if analysis fails
+        
+        # Generate the report
         report = generate_report(temp_file_path, aiml_results, bandit_results, complexity_results, dependencies_results)
         
-        st.subheader("Analysis Results")
-        st.json(report)
-        
-        st.subheader("Extracted Code Elements")
-        st.write(f"**Functions:** {', '.join(report['Code Complexity']['functions'])}")
-        st.write(f"**Classes:** {', '.join(report['Code Complexity']['classes'])}")
-        st.write(f"**Variables:** {', '.join(report['Code Complexity']['variables'])}")
-        
-        st.subheader("Recommendations")
-        for rec in report["Recommendations"]:
-            st.write(f"- {rec}")
-        
-        # Download buttons for PDF and Word report
-        pdf_file = generate_pdf_report(report, temp_file_path)
-        word_file = generate_word_report(report, temp_file_path)
-        
-        st.download_button("Download PDF Report", open(pdf_file, "rb").read(), file_name=f"{os.path.basename(temp_file_path)}_report.pdf", mime="application/pdf")
-        st.download_button("Download Word Report", open(word_file, "rb").read(), file_name=f"{os.path.basename(temp_file_path)}_report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        
-        # Clean up temporary files
-        os.remove(temp_file_path)
-        os.remove(pdf_file)
-        os.remove(word_file)
+        # Display results only if analysis was successful
+        if aiml_results is not None:
+            st.subheader("Analysis Results")
+            
+            # Section 1: AI Analysis
+            st.markdown("---")
+            st.header("🧠 AI Code Review Findings")
+            st.markdown("#### Code Quality Assessment")
+            st.write(aiml_results)
+
+            # Section 2: Security Analysis
+            st.markdown("---")
+            st.header("🔒 Security Analysis Results")
+            if "error" in bandit_results:
+                st.error(bandit_results["error"])
+            else:
+                if bandit_results.get("results"):
+                    for result in bandit_results["results"]:
+                        with st.expander(f"🔍 {result['test_name']}", expanded=False):
+                            st.markdown(f"**Severity:** {result['issue_severity']}")
+                            st.markdown(f"**Confidence:** {result['issue_confidence']}")
+                            st.code(result['code'], language='python')
+                            st.markdown(f"**Explanation:** {result['issue_text']}")
+                else:
+                    st.success("✅ No security issues found by Bandit")
+
+            # Section 3: Code Complexity
+            st.markdown("---")
+            st.header("📊 Code Complexity Analysis")
+            cols = st.columns(3)
+            cols[0].metric("Functions", complexity_results["total_functions"])
+            cols[1].metric("Classes", complexity_results["total_classes"])
+            cols[2].metric("Complexity Score", complexity_results["complexity_score"])
+
+            st.markdown("#### Identified Elements")
+            st.write(f"**Functions:** {', '.join(complexity_results['functions']) or 'None'}")
+            st.write(f"**Classes:** {', '.join(complexity_results['classes']) or 'None'}")
+            st.write(f"**Variables:** {', '.join(complexity_results['variables']) or 'None'}")
+
+            # Section 4: Dependency Analysis
+            st.markdown("---")
+            st.header("📦 Dependency Vulnerabilities")
+            if "error" in dependencies_results:
+                st.error(dependencies_results["error"])
+            else:
+                if dependencies_results.get("vulnerabilities"):
+                    for vuln in dependencies_results["vulnerabilities"]:
+                        st.markdown(f"### {vuln['name']} ({vuln['spec']})")
+                        st.markdown(f"**Severity:** `{vuln['advisory']['severity']}`")
+                        st.markdown(f"**Affected Versions:** {vuln['advisory']['affected_versions']}")
+                        st.markdown(f"**Description:** {vuln['advisory']['description']}")
+                else:
+                    st.success("✅ All dependencies are secure")
+
+            # Section 5: Recommendations
+            st.markdown("---")
+            st.header("📝 Key Recommendations")
+            for rec in report["Recommendations"]:
+                if "vulnerabilities" in rec:
+                    st.error(f"🚨 {rec}")
+                elif "complex" in rec:
+                    st.warning(f"⚠️ {rec}")
+                else:
+                    st.success(f"✅ {rec}")
+
+            # Download buttons for PDF and Word report
+            pdf_file = generate_pdf_report(report, temp_file_path)
+            word_file = generate_word_report(report, temp_file_path)
+            
+            st.download_button("Download PDF Report", open(pdf_file, "rb").read(), file_name=f"{os.path.basename(temp_file_path)}_report.pdf", mime="application/pdf")
+            st.download_button("Download Word Report", open(word_file, "rb").read(), file_name=f"{os.path.basename(temp_file_path)}_report.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            
+            # Clean up temporary files
+            os.remove(temp_file_path)
+            os.remove(pdf_file)
+            os.remove(word_file)
+        else:
+            st.error("Analysis failed. Please check the uploaded file and try again.")
 
 if __name__ == "__main__":
     main()
