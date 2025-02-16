@@ -1,0 +1,7 @@
+streamlit
+fpdf
+python-docx
+openai
+requests
+bandit
+pip-audit
